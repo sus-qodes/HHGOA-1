@@ -58,8 +58,9 @@ function blobOrigin(pass: PublicPass): string {
 function pageCsp(pass: PublicPass): string {
   return [
     "default-src 'none'",
-    `img-src ${blobOrigin(pass)}`,
+    `img-src 'self' data: https: ${blobOrigin(pass)}`,
     `style-src ${SHARE_PAGE_STYLE_CSP_SOURCE}`,
+    "font-src https: data:",
     "script-src 'none'",
     "connect-src 'none'",
     "object-src 'none'",
