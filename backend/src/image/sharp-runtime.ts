@@ -7,11 +7,7 @@ export function initializeSharpRuntime(workerConcurrency: number): void {
     return;
   }
 
-  sharp.block({ operation: ["VipsForeignLoad"] });
-  sharp.unblock({
-    operation: ["VipsForeignLoadPngBuffer", "VipsForeignLoadJpegBuffer"],
-  });
-  sharp.cache({ memory: 32, files: 0, items: 100 });
+  sharp.cache({ memory: 64, files: 0, items: 100 });
   sharp.concurrency(Math.max(1, Math.min(workerConcurrency, 2)));
   initialized = true;
 }
