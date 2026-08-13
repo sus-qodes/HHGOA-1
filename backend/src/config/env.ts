@@ -241,7 +241,7 @@ export function loadConfig(
     ),
     shareProcessTimeoutMs: parseInteger(
       env.SHARE_PROCESS_TIMEOUT_MS,
-      5000,
+      20_000,
       "SHARE_PROCESS_TIMEOUT_MS",
       100,
       60_000,

@@ -35,9 +35,6 @@ function buildOgOverlaySvg(
     <pattern id="dotGrid" width="20" height="20" patternUnits="userSpaceOnUse">
       <circle cx="2" cy="2" r="1" fill="#f3ead5" opacity="0.09"/>
     </pattern>
-    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="10" dy="14" stdDeviation="18" flood-color="#000000" flood-opacity="0.7"/>
-    </filter>
   </defs>
 
   <!-- Jungle Green Background -->
@@ -73,8 +70,9 @@ function buildOgOverlaySvg(
     <text x="0" y="78" font-family="system-ui, sans-serif" font-size="18" font-weight="700" fill="#ffd400" letter-spacing="3">#FrameInGoa • OFFICIAL BUILDER PASS</text>
   </g>
 
-  <!-- Right Side Card Frame / Shadow -->
-  <rect x="${cardLeft - 5}" y="${cardTop - 5}" width="${cardWidth + 10}" height="${cardHeight + 10}" rx="10" fill="#102d24" stroke="#ffd400" stroke-width="2.5" filter="url(#cardShadow)"/>
+  <!-- Right Side Card Drop Shadow & Border Frame -->
+  <rect x="${cardLeft + 6}" y="${cardTop + 8}" width="${cardWidth}" height="${cardHeight}" rx="14" fill="#000000" opacity="0.45"/>
+  <rect x="${cardLeft - 4}" y="${cardTop - 4}" width="${cardWidth + 8}" height="${cardHeight + 8}" rx="14" fill="#102d24" stroke="#ffd400" stroke-width="2.5"/>
 </svg>`;
   return Buffer.from(svg);
 }
