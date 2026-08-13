@@ -1,0 +1,37 @@
+{
+  "name": "hh-goa-2026-builder-id-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Backend for immutable HH Goa 2026 Builder Pass pages and direct Blob publishing.",
+  "type": "module",
+  "engines": {
+    "node": ">=24.11.0 <25"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch --watch-preserve-output --import tsx src/main.ts",
+    "start": "node --env-file-if-exists=.env dist/main.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "probe:runtime": "tsx scripts/probe-image-runtime.ts",
+    "check": "npm run typecheck && npm run lint && npm run build"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.0",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^6.1.1",
+    "@vercel/blob": "^2.8.0",
+    "fastify": "^5.11.3",
+    "sharp": "^0.35.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.13.3",
+    "eslint": "^10.8.1",
+    "tsx": "^4.23.12",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.67.0"
+  }
+}

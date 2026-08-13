@@ -1,0 +1,140 @@
+.intro-screen {
+  align-items: center;
+  background-color: #06452f;
+  color: #efe4cc;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  height: 100svh;
+  isolation: isolate;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.app-main-content {
+  background-color: #06452f;
+  min-height: 100svh;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+/* Container for the pan motion */
+.intro-pan-container {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+
+/* Animated title element — anchored at left:0, top:50%. Horizontal
+   position is controlled entirely via inline translateX, vertical
+   centering via translateY(-50%) in the inline transform. */
+.intro-title-element {
+  left: 0;
+  position: absolute;
+  top: 50%;
+  white-space: nowrap;
+  transition-property: transform;
+  transition-timing-function: linear;
+  will-change: transform;
+}
+
+.intro-title-text {
+  font-family: "Imbue", Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  margin: 0;
+  text-shadow: 2px 2px 0px #000000;
+}
+
+.intro-offwhite {
+  color: #efe4cc;
+}
+
+.intro-yellow {
+  color: #fee101;
+}
+
+
+
+/* Page swipe transition styles */
+.app-viewport-container {
+  background-color: #06452f;
+  min-height: 100svh;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.app-screen-layer {
+  background-color: #06452f;
+  min-height: 100svh;
+  width: 100%;
+}
+
+.app-screen-layer-current {
+  background-color: #06452f;
+  min-height: 100svh;
+  position: relative;
+  width: 100%;
+  z-index: 30;
+}
+
+.app-screen-layer-outgoing {
+  animation: app-swipe-out-left 1200ms linear forwards;
+  background-color: #06452f;
+  height: 100svh;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  z-index: 10;
+}
+
+.app-screen-layer-hidden {
+  background-color: #06452f;
+  left: 0;
+  min-height: 100svh;
+  position: absolute;
+  top: 0;
+  transform: translateX(100vw);
+  visibility: hidden;
+  width: 100%;
+  z-index: 20;
+}
+
+.app-screen-layer-incoming {
+  animation: app-swipe-in-right 1200ms linear forwards;
+  background-color: #06452f;
+  left: 0;
+  min-height: 100svh;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  z-index: 20;
+}
+
+@keyframes app-swipe-in-right {
+  from {
+    transform: translateX(100vw);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes app-swipe-out-left {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-100vw);
+  }
+}
