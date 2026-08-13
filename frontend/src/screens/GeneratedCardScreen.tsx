@@ -41,15 +41,16 @@ export default function GeneratedCardScreen({
   onMakeAnother,
 }: GeneratedCardScreenProps) {
   const [shareState, setShareState] = useState<ShareState>(() => {
-    if (card.prewarmedShare) {
+    const knownUrl = card.prewarmedShare?.url ?? card.optimisticShareUrl;
+    if (knownUrl) {
       const intentUrl = buildXIntentUrl(
-        card.prewarmedShare.url,
+        knownUrl,
         buildBuilderPassXShareText(),
       );
       return {
         status: "ready",
         intentUrl,
-        hostedUrl: card.prewarmedShare.url,
+        hostedUrl: knownUrl,
       };
     }
     return { status: "preparing" };
@@ -67,7 +68,6 @@ export default function GeneratedCardScreen({
     let active = true;
 
     async function publishInBackground() {
-      setShareState({ status: "preparing" });
       try {
         let hosted: HostedShare;
         if (card.prewarmedSharePromise) {
@@ -76,11 +76,35 @@ export default function GeneratedCardScreen({
           } catch {
             hosted = await createHostedShare(card.blob, {
               backendOrigin: runtimeConfig.backendOrigin,
+              onInitiated: (event) => {
+                if (!active) return;
+                const intentUrl = buildXIntentUrl(
+                  event.passUrl,
+                  buildBuilderPassXShareText(),
+                );
+                setShareState((current) =>
+                  current.status === "ready"
+                    ? current
+                    : { status: "ready", intentUrl, hostedUrl: event.passUrl },
+                );
+              },
             });
           }
         } else {
           hosted = await createHostedShare(card.blob, {
             backendOrigin: runtimeConfig.backendOrigin,
+            onInitiated: (event) => {
+              if (!active) return;
+              const intentUrl = buildXIntentUrl(
+                event.passUrl,
+                buildBuilderPassXShareText(),
+              );
+              setShareState((current) =>
+                current.status === "ready"
+                  ? current
+                  : { status: "ready", intentUrl, hostedUrl: event.passUrl },
+              );
+            },
           });
         }
         if (!active) return;
@@ -100,12 +124,17 @@ export default function GeneratedCardScreen({
         }
       } catch (error) {
         if (!active) return;
-        setShareState({
-          status: "error",
-          message:
-            error instanceof HostedShareError
-              ? retryMessage(error)
-              : "Could not create public link. You can still download your card.",
+        setShareState((current) => {
+          if (current.status === "ready") {
+            return current;
+          }
+          return {
+            status: "error",
+            message:
+              error instanceof HostedShareError
+                ? retryMessage(error)
+                : "Could not create public link. You can still download your card.",
+          };
         });
       }
     }

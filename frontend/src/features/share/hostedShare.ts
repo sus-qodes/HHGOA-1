@@ -98,12 +98,18 @@ export type DirectBlobUploader = (
   options: DirectBlobUploadOptions,
 ) => Promise<DirectBlobUploadResult>;
 
+export interface HostedShareInitiatedEvent {
+  readonly id: string;
+  readonly passUrl: string;
+}
+
 export interface CreateHostedShareOptions {
   readonly backendOrigin: string;
   readonly fetch?: typeof globalThis.fetch;
   readonly upload?: DirectBlobUploader;
   readonly signal?: AbortSignal;
   readonly now?: () => number;
+  readonly onInitiated?: (event: HostedShareInitiatedEvent) => void;
 }
 
 interface ParsedProblem {
@@ -497,6 +503,13 @@ export async function createHostedShare(
   }
 
   const upload = initiationPayload.upload;
+  const passUrl = `${options.backendOrigin.replace(/\/+$/u, "")}/pass/${encodeURIComponent(upload.id)}`;
+  try {
+    options.onInitiated?.({ id: upload.id, passUrl });
+  } catch {
+    // Callback failures should not fail upload
+  }
+
   const directUpload = options.upload ?? uploadToVercelBlob;
   try {
     await directUpload(upload.pathname, pngBlob, {

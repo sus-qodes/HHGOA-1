@@ -159,6 +159,17 @@ export default function CreateCardScreen({
           const uploadPromise = createHostedShare(card.blob, {
             backendOrigin: runtimeConfig.backendOrigin,
             signal: controller.signal,
+            onInitiated: (event) => {
+              if (
+                prewarmEpochRef.current === currentEpoch &&
+                prewarmedRef.current?.key === inputKey
+              ) {
+                prewarmedRef.current.card = {
+                  ...prewarmedRef.current.card,
+                  optimisticShareUrl: event.passUrl,
+                };
+              }
+            },
           });
 
           const prewarmedCard: GeneratedBuilderCard = {
@@ -181,6 +192,7 @@ export default function CreateCardScreen({
                 prewarmedRef.current.card = {
                   ...prewarmedRef.current.card,
                   prewarmedShare: hosted,
+                  optimisticShareUrl: hosted.url,
                 };
               }
             })
@@ -280,8 +292,12 @@ export default function CreateCardScreen({
     setIsGenerating(true);
     try {
       const card = await renderBuilderCard(input);
+      let optimisticUrl: string | undefined;
       const uploadPromise = createHostedShare(card.blob, {
         backendOrigin: runtimeConfig.backendOrigin,
+        onInitiated: (event) => {
+          optimisticUrl = event.passUrl;
+        },
       });
       uploadPromise.catch(() => {
         // Handled by GeneratedCardScreen
@@ -289,6 +305,7 @@ export default function CreateCardScreen({
       onGenerated({
         ...card,
         prewarmedSharePromise: uploadPromise,
+        optimisticShareUrl: optimisticUrl,
       });
     } catch (error) {
       setErrors({

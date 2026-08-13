@@ -20,4 +20,5 @@ export interface GeneratedBuilderCard {
   readonly metadata: BuilderCardRenderMetadata;
   readonly prewarmedShare?: HostedShare;
   readonly prewarmedSharePromise?: Promise<HostedShare>;
+  readonly optimisticShareUrl?: string;
 }
