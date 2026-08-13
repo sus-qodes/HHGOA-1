@@ -15,7 +15,6 @@ import { GeneratorFooter } from "../components/GeneratorFooter";
 import { GeneratorHeader } from "../components/GeneratorHeader";
 import { GoaStickerRail } from "../components/GoaStickerRail";
 import { PhotoAdjustModal } from "../components/PhotoAdjustModal";
-import { runtimeConfig } from "../config/runtime";
 import {
   BUILDER_TITLE_OPTIONS,
   DEFAULT_BUILDER_FRAME_ID,
@@ -29,7 +28,6 @@ import {
   type BuilderFrameId,
   type BuilderTitle,
 } from "../features/card-renderer";
-import { createHostedShare, type HostedShare } from "../features/share";
 import { useObjectUrl } from "../hooks/useObjectUrl";
 import { useScreenFocus } from "../hooks/useScreenFocus";
 
@@ -83,8 +81,6 @@ export default function CreateCardScreen({
   const prewarmedRef = useRef<{
     readonly key: string;
     readonly card: GeneratedBuilderCard;
-    readonly hostedShare?: HostedShare;
-    readonly inFlightSharePromise?: Promise<HostedShare>;
   } | null>(null);
   const prewarmEpochRef = useRef(0);
 
@@ -92,16 +88,6 @@ export default function CreateCardScreen({
     ...techStack,
     ...(techDraft.trim() !== "" ? [techDraft.trim()] : []),
   ].slice(0, 5);
-
-  const currentInput = {
-    photo,
-    name,
-    stackRole,
-    teamName,
-    techStack: liveTechStack,
-    builderTitle,
-    frameId,
-  };
 
   const inputKey = JSON.stringify({
     name: name.trim(),
@@ -126,7 +112,7 @@ export default function CreateCardScreen({
     };
   }, []);
 
-  // Silent background pre-warming of Card + Preview share link on form fill / blur
+  // Pure local GPU canvas pre-rendering in browser memory (0 network traffic)
   useEffect(() => {
     const input = {
       photo,
@@ -161,43 +147,11 @@ export default function CreateCardScreen({
             key: inputKey,
             card,
           };
-
-          // After a stable pause (1.5s), start quiet background upload
-          const uploadTimer = window.setTimeout(() => {
-            if (prewarmEpochRef.current !== currentEpoch) return;
-            const sharePromise = createHostedShare(card.blob, {
-              backendOrigin: runtimeConfig.backendOrigin,
-            });
-
-            prewarmedRef.current = {
-              key: inputKey,
-              card,
-              inFlightSharePromise: sharePromise,
-            };
-
-            void sharePromise
-              .then((hostedShare) => {
-                if (prewarmEpochRef.current === currentEpoch) {
-                  prewarmedRef.current = {
-                    key: inputKey,
-                    card,
-                    hostedShare,
-                  };
-                }
-              })
-              .catch(() => {
-                // Ignore background upload error; handled on result screen
-              });
-          }, 1200);
-
-          return () => {
-            window.clearTimeout(uploadTimer);
-          };
         } catch {
-          // Pre-warming is best-effort background optimization
+          // Pre-rendering is best-effort local optimization
         }
       })();
-    }, 300);
+    }, 200);
 
     return () => {
       prewarmEpochRef.current += 1;
@@ -276,33 +230,16 @@ export default function CreateCardScreen({
 
     setErrors({});
 
-    // Check if we already have the pre-warmed card & share link ready
+    // If card was already rendered on canvas in memory, pass immediately (0ms!)
     const prewarmed = prewarmedRef.current;
     if (prewarmed !== null && prewarmed.key === inputKey) {
-      let prewarmedShare = prewarmed.hostedShare;
-      if (!prewarmedShare && prewarmed.inFlightSharePromise) {
-        try {
-          prewarmedShare = await Promise.race([
-            prewarmed.inFlightSharePromise,
-            new Promise<undefined>((resolve) => {
-              window.setTimeout(resolve, 350);
-            }),
-          ]);
-        } catch {
-          // Pre-warmed share failure; GeneratedCardScreen will handle creation
-        }
-      }
-
-      onGenerated({
-        ...prewarmed.card,
-        prewarmedShare,
-      });
+      onGenerated(prewarmed.card);
       return;
     }
 
     setIsGenerating(true);
     try {
-      const card = await renderBuilderCard(currentInput);
+      const card = await renderBuilderCard(input);
       onGenerated(card);
     } catch (error) {
       setErrors({
