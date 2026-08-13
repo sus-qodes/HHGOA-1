@@ -3,6 +3,7 @@ import {
   get as getBlob,
   list as listBlobs,
   put as putBlob,
+  BlobNotFoundError,
   type ListBlobResultBlob,
   type PutBlobResult,
 } from "@vercel/blob";
@@ -399,6 +400,15 @@ export class VercelBlobPassStorage implements PassBlobStoragePort {
     } catch (error) {
       if (error instanceof BlobPassStorageError) {
         throw error;
+      }
+      if (
+        error instanceof BlobNotFoundError ||
+        (typeof error === "object" &&
+          error !== null &&
+          "name" in error &&
+          error.name === "BlobNotFoundError")
+      ) {
+        return null;
       }
       throw new BlobPassStorageError("STORAGE_UNAVAILABLE", { cause: error });
     }
