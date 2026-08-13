@@ -19,4 +19,5 @@ export interface GeneratedBuilderCard {
   readonly frameId: BuilderFrameId;
   readonly metadata: BuilderCardRenderMetadata;
   readonly prewarmedShare?: HostedShare;
+  readonly prewarmedSharePromise?: Promise<HostedShare>;
 }

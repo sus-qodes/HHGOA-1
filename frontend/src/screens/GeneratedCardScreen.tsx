@@ -10,6 +10,7 @@ import {
   buildBuilderPassXShareText,
   buildXIntentUrl,
   createHostedShare,
+  type HostedShare,
 } from "../features/share";
 import { useObjectUrl } from "../hooks/useObjectUrl";
 import { useScreenFocus } from "../hooks/useScreenFocus";
@@ -68,9 +69,20 @@ export default function GeneratedCardScreen({
     async function publishInBackground() {
       setShareState({ status: "preparing" });
       try {
-        const hosted = await createHostedShare(card.blob, {
-          backendOrigin: runtimeConfig.backendOrigin,
-        });
+        let hosted: HostedShare;
+        if (card.prewarmedSharePromise) {
+          try {
+            hosted = await card.prewarmedSharePromise;
+          } catch {
+            hosted = await createHostedShare(card.blob, {
+              backendOrigin: runtimeConfig.backendOrigin,
+            });
+          }
+        } else {
+          hosted = await createHostedShare(card.blob, {
+            backendOrigin: runtimeConfig.backendOrigin,
+          });
+        }
         if (!active) return;
         const intentUrl = buildXIntentUrl(
           hosted.url,
@@ -103,7 +115,7 @@ export default function GeneratedCardScreen({
     return () => {
       active = false;
     };
-  }, [card.blob, card.prewarmedShare]);
+  }, [card.blob, card.prewarmedShare, card.prewarmedSharePromise]);
 
   function handleDownload() {
     downloadCardPng(card.blob, card.name);

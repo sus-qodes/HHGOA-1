@@ -28,6 +28,8 @@ import {
   type BuilderFrameId,
   type BuilderTitle,
 } from "../features/card-renderer";
+import { runtimeConfig } from "../config/runtime";
+import { createHostedShare } from "../features/share";
 import { useObjectUrl } from "../hooks/useObjectUrl";
 import { useScreenFocus } from "../hooks/useScreenFocus";
 
@@ -80,7 +82,8 @@ export default function CreateCardScreen({
 
   const prewarmedRef = useRef<{
     readonly key: string;
-    readonly card: GeneratedBuilderCard;
+    card: GeneratedBuilderCard;
+    readonly abortController?: AbortController;
   } | null>(null);
   const prewarmEpochRef = useRef(0);
 
@@ -112,7 +115,7 @@ export default function CreateCardScreen({
     };
   }, []);
 
-  // Pure local GPU canvas pre-rendering in browser memory (0 network traffic)
+  // Local GPU canvas pre-rendering and background hosted-share pre-warming
   useEffect(() => {
     const input = {
       photo,
@@ -126,11 +129,20 @@ export default function CreateCardScreen({
 
     const validationErrors = validateBuilderCardInput(input);
     if (Object.keys(validationErrors).length > 0) {
+      if (prewarmedRef.current !== null && prewarmedRef.current.key !== inputKey) {
+        prewarmedRef.current.abortController?.abort();
+        prewarmedRef.current = null;
+      }
       return;
     }
 
     if (prewarmedRef.current?.key === inputKey) {
       return;
+    }
+
+    // Cancel previous in-flight background upload if input changed
+    if (prewarmedRef.current !== null) {
+      prewarmedRef.current.abortController?.abort();
     }
 
     prewarmEpochRef.current += 1;
@@ -143,15 +155,43 @@ export default function CreateCardScreen({
             return;
           }
 
+          const controller = new AbortController();
+          const uploadPromise = createHostedShare(card.blob, {
+            backendOrigin: runtimeConfig.backendOrigin,
+            signal: controller.signal,
+          });
+
+          const prewarmedCard: GeneratedBuilderCard = {
+            ...card,
+            prewarmedSharePromise: uploadPromise,
+          };
+
           prewarmedRef.current = {
             key: inputKey,
-            card,
+            card: prewarmedCard,
+            abortController: controller,
           };
+
+          uploadPromise
+            .then((hosted) => {
+              if (
+                prewarmEpochRef.current === currentEpoch &&
+                prewarmedRef.current?.key === inputKey
+              ) {
+                prewarmedRef.current.card = {
+                  ...prewarmedRef.current.card,
+                  prewarmedShare: hosted,
+                };
+              }
+            })
+            .catch(() => {
+              // Best-effort background upload
+            });
         } catch {
           // Pre-rendering is best-effort local optimization
         }
       })();
-    }, 200);
+    }, 250);
 
     return () => {
       prewarmEpochRef.current += 1;
@@ -240,7 +280,16 @@ export default function CreateCardScreen({
     setIsGenerating(true);
     try {
       const card = await renderBuilderCard(input);
-      onGenerated(card);
+      const uploadPromise = createHostedShare(card.blob, {
+        backendOrigin: runtimeConfig.backendOrigin,
+      });
+      uploadPromise.catch(() => {
+        // Handled by GeneratedCardScreen
+      });
+      onGenerated({
+        ...card,
+        prewarmedSharePromise: uploadPromise,
+      });
     } catch (error) {
       setErrors({
         form:
