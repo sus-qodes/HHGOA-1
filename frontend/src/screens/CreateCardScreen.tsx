@@ -14,19 +14,22 @@ import { CardFramePicker } from "../components/CardFramePicker";
 import { GeneratorFooter } from "../components/GeneratorFooter";
 import { GeneratorHeader } from "../components/GeneratorHeader";
 import { GoaStickerRail } from "../components/GoaStickerRail";
+import { PhotoAdjustModal } from "../components/PhotoAdjustModal";
+import { runtimeConfig } from "../config/runtime";
 import {
   BUILDER_TITLE_OPTIONS,
   DEFAULT_BUILDER_FRAME_ID,
   DEFAULT_BUILDER_TITLE,
   MAX_SOURCE_IMAGE_BYTES,
   PHOTO_ACCEPT_ATTRIBUTE,
-  renderBuilderCard,
   preloadBuilderCardAssets,
+  renderBuilderCard,
   validateBuilderCardInput,
   type BuilderCardValidationErrors,
   type BuilderFrameId,
   type BuilderTitle,
 } from "../features/card-renderer";
+import { createHostedShare, type HostedShare } from "../features/share";
 import { useObjectUrl } from "../hooks/useObjectUrl";
 import { useScreenFocus } from "../hooks/useScreenFocus";
 
@@ -51,8 +54,6 @@ function nextBuilderTitle(current: BuilderTitle): BuilderTitle {
   const index = BUILDER_TITLE_OPTIONS.indexOf(current);
   return BUILDER_TITLE_OPTIONS[(index + 1) % BUILDER_TITLE_OPTIONS.length] ?? DEFAULT_BUILDER_TITLE;
 }
-
-import { PhotoAdjustModal } from "../components/PhotoAdjustModal";
 
 export default function CreateCardScreen({
   onGenerated,
@@ -79,10 +80,40 @@ export default function CreateCardScreen({
   const photoUrl = useObjectUrl(photo);
   const rawPhotoUrl = useObjectUrl(rawPhoto);
 
+  const prewarmedRef = useRef<{
+    readonly key: string;
+    readonly card: GeneratedBuilderCard;
+    readonly hostedShare?: HostedShare;
+    readonly inFlightSharePromise?: Promise<HostedShare>;
+  } | null>(null);
+  const prewarmEpochRef = useRef(0);
+
   const liveTechStack = [
     ...techStack,
     ...(techDraft.trim() !== "" ? [techDraft.trim()] : []),
   ].slice(0, 5);
+
+  const currentInput = {
+    photo,
+    name,
+    stackRole,
+    teamName,
+    techStack: liveTechStack,
+    builderTitle,
+    frameId,
+  };
+
+  const inputKey = JSON.stringify({
+    name: name.trim(),
+    stackRole: stackRole.trim(),
+    teamName: teamName.trim(),
+    techStack: liveTechStack,
+    builderTitle,
+    frameId,
+    photoName: photo?.name,
+    photoSize: photo?.size,
+    photoLastMod: photo?.lastModified,
+  });
 
   useEffect(() => {
     const warmAllCards = window.setTimeout(() => {
@@ -94,6 +125,80 @@ export default function CreateCardScreen({
       window.clearTimeout(warmAllCards);
     };
   }, []);
+
+  // Silent background pre-warming of Card + Preview share link on form fill / blur
+  useEffect(() => {
+    const input = {
+      photo,
+      name,
+      stackRole,
+      teamName,
+      techStack: liveTechStack,
+      builderTitle,
+      frameId,
+    };
+
+    const validationErrors = validateBuilderCardInput(input);
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    if (prewarmedRef.current?.key === inputKey) {
+      return;
+    }
+
+    prewarmEpochRef.current += 1;
+    const currentEpoch = prewarmEpochRef.current;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const card = await renderBuilderCard(input);
+          if (prewarmEpochRef.current !== currentEpoch) {
+            return;
+          }
+
+          const sharePromise = createHostedShare(card.blob, {
+            backendOrigin: runtimeConfig.backendOrigin,
+          });
+
+          prewarmedRef.current = {
+            key: inputKey,
+            card,
+            inFlightSharePromise: sharePromise,
+          };
+
+          const hostedShare = await sharePromise;
+          if (prewarmEpochRef.current !== currentEpoch) {
+            return;
+          }
+
+          if (prewarmedRef.current.key === inputKey) {
+            prewarmedRef.current = {
+              key: inputKey,
+              card,
+              hostedShare,
+            };
+          }
+        } catch {
+          // Pre-warming is best-effort background optimization
+        }
+      })();
+    }, 500);
+
+    return () => {
+      prewarmEpochRef.current += 1;
+      window.clearTimeout(timer);
+    };
+  }, [
+    inputKey,
+    photo,
+    name,
+    stackRole,
+    teamName,
+    liveTechStack,
+    builderTitle,
+    frameId,
+  ]);
 
   function warmSelectedCard(selectedFrameId: BuilderFrameId) {
     void preloadBuilderCardAssets(selectedFrameId).catch(() => {
@@ -145,7 +250,7 @@ export default function CreateCardScreen({
       name,
       stackRole,
       teamName,
-      techStack,
+      techStack: liveTechStack,
       builderTitle,
       frameId,
     };
@@ -156,9 +261,34 @@ export default function CreateCardScreen({
     }
 
     setErrors({});
+
+    // Check if we already have the pre-warmed card & share link ready
+    const prewarmed = prewarmedRef.current;
+    if (prewarmed !== null && prewarmed.key === inputKey) {
+      let prewarmedShare = prewarmed.hostedShare;
+      if (!prewarmedShare && prewarmed.inFlightSharePromise) {
+        try {
+          prewarmedShare = await Promise.race([
+            prewarmed.inFlightSharePromise,
+            new Promise<undefined>((resolve) => {
+              window.setTimeout(resolve, 350);
+            }),
+          ]);
+        } catch {
+          // Pre-warmed share failure; GeneratedCardScreen will handle creation
+        }
+      }
+
+      onGenerated({
+        ...prewarmed.card,
+        prewarmedShare,
+      });
+      return;
+    }
+
     setIsGenerating(true);
     try {
-      const card = await renderBuilderCard(input);
+      const card = await renderBuilderCard(currentInput);
       onGenerated(card);
     } catch (error) {
       setErrors({

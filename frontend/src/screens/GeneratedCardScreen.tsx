@@ -39,13 +39,30 @@ export default function GeneratedCardScreen({
   card,
   onMakeAnother,
 }: GeneratedCardScreenProps) {
-  const [shareState, setShareState] = useState<ShareState>({ status: "preparing" });
+  const [shareState, setShareState] = useState<ShareState>(() => {
+    if (card.prewarmedShare) {
+      const intentUrl = buildXIntentUrl(
+        card.prewarmedShare.url,
+        buildBuilderPassXShareText(runtimeConfig.publicAppUrl),
+      );
+      return {
+        status: "ready",
+        intentUrl,
+        hostedUrl: card.prewarmedShare.url,
+      };
+    }
+    return { status: "preparing" };
+  });
   const [notice, setNotice] = useState<string | null>(null);
   const previewUrl = useObjectUrl(card.blob);
   const headingRef = useScreenFocus<HTMLHeadingElement>();
   const clickedWhilePreparingRef = useRef(false);
 
   useEffect(() => {
+    if (card.prewarmedShare) {
+      return;
+    }
+
     let active = true;
 
     async function publishInBackground() {
@@ -86,7 +103,7 @@ export default function GeneratedCardScreen({
     return () => {
       active = false;
     };
-  }, [card.blob]);
+  }, [card.blob, card.prewarmedShare]);
 
   function handleDownload() {
     downloadCardPng(card.blob, card.name);

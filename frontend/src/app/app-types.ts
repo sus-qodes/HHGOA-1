@@ -3,6 +3,7 @@ import type {
   BuilderFrameId,
   BuilderTitle,
 } from "../features/card-renderer";
+import type { HostedShare } from "../features/share";
 
 export type AppScreen = "intro" | "create" | "result";
 
@@ -17,4 +18,5 @@ export interface GeneratedBuilderCard {
   readonly xUsername?: string;
   readonly frameId: BuilderFrameId;
   readonly metadata: BuilderCardRenderMetadata;
+  readonly prewarmedShare?: HostedShare;
 }
