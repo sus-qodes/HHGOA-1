@@ -2,13 +2,13 @@ import { parseHttpUrl } from "./shareValidation";
 
 export const X_HASHTAGS = "FrameInGoa,HHGoa2026";
 export const DEFAULT_X_SHARE_TEXT =
-  "Just generated my HH Goa 2026 Builder ID 🚀";
+  "PACK YOUR BAGS! 🌴⚡️ Just locked in my official Builder Pass for Hacker House Goa 2026 with @247pmstudio.\n\nSee you in Goa, builders. We're going all in! 🚀🔥\n\nFrame your own Builder ID:";
 
 const X_INTENT_URL = "https://x.com/intent/tweet";
 
 export function buildBuilderPassXShareText(publicAppUrl: string): string {
   const parsedAppUrl = parseHttpUrl(publicAppUrl, "Public app URL");
-  return `${DEFAULT_X_SHARE_TEXT}\n\nCreate your own Builder Card:\n${parsedAppUrl.origin}\n\n`;
+  return `${DEFAULT_X_SHARE_TEXT}\n${parsedAppUrl.origin}\n\n`;
 }
 
 export function buildXIntentUrl(

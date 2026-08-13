@@ -105,7 +105,7 @@ async function encodeSanitizedCard(
     .timeout({ seconds: deadline.secondsRemaining() })
     .autoOrient()
     .toColourspace("srgb")
-    .flatten({ background: { r: 8, g: 18, b: 38 } })
+    .flatten({ background: { r: 6, g: 63, b: 46 } })
     .raw()
     .toBuffer({ resolveWithObject: true });
 
@@ -126,8 +126,8 @@ async function encodeSanitizedCard(
   })
     .timeout({ seconds: deadline.secondsRemaining() })
     .png({
-      compressionLevel: 9,
-      adaptiveFiltering: true,
+      compressionLevel: 6,
+      adaptiveFiltering: false,
       palette: false,
     })
     .toBuffer({ resolveWithObject: true });

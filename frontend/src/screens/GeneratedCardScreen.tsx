@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { GeneratedBuilderCard } from "../app/app-types";
 import { GeneratorHeader } from "../components/GeneratorHeader";
@@ -9,10 +9,7 @@ import {
   HostedShareError,
   buildBuilderPassXShareText,
   buildXIntentUrl,
-  closePreparingSharePopup,
   createHostedShare,
-  navigatePreparingSharePopup,
-  openPreparingSharePopup,
 } from "../features/share";
 import { useObjectUrl } from "../hooks/useObjectUrl";
 import { useScreenFocus } from "../hooks/useScreenFocus";
@@ -22,11 +19,12 @@ export interface GeneratedCardScreenProps {
   readonly onMakeAnother: () => void;
 }
 
-type ShareStatus = "idle" | "preparing" | "ready" | "error";
+type ShareStatus = "preparing" | "ready" | "error";
 
 interface ShareState {
   readonly status: ShareStatus;
   readonly intentUrl?: string;
+  readonly hostedUrl?: string;
   readonly message?: string;
 }
 
@@ -41,59 +39,101 @@ export default function GeneratedCardScreen({
   card,
   onMakeAnother,
 }: GeneratedCardScreenProps) {
-  const [shareState, setShareState] = useState<ShareState>({ status: "idle" });
+  const [shareState, setShareState] = useState<ShareState>({ status: "preparing" });
   const [notice, setNotice] = useState<string | null>(null);
   const previewUrl = useObjectUrl(card.blob);
   const headingRef = useScreenFocus<HTMLHeadingElement>();
+  const clickedWhilePreparingRef = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function publishInBackground() {
+      setShareState({ status: "preparing" });
+      try {
+        const hosted = await createHostedShare(card.blob, {
+          backendOrigin: runtimeConfig.backendOrigin,
+        });
+        if (!active) return;
+        const intentUrl = buildXIntentUrl(
+          hosted.url,
+          buildBuilderPassXShareText(runtimeConfig.publicAppUrl),
+        );
+        setShareState({
+          status: "ready",
+          intentUrl,
+          hostedUrl: hosted.url,
+        });
+
+        if (clickedWhilePreparingRef.current) {
+          clickedWhilePreparingRef.current = false;
+          window.open(intentUrl, "_blank", "noopener,noreferrer");
+        }
+      } catch (error) {
+        if (!active) return;
+        setShareState({
+          status: "error",
+          message:
+            error instanceof HostedShareError
+              ? retryMessage(error)
+              : "Could not create public link. You can still download your card.",
+        });
+      }
+    }
+
+    void publishInBackground();
+
+    return () => {
+      active = false;
+    };
+  }, [card.blob]);
 
   function handleDownload() {
     downloadCardPng(card.blob, card.name);
     setNotice(`Downloaded ${card.filename}`);
   }
 
-  async function handleHostedXShare() {
-    // Open synchronously so the browser recognizes this as a user gesture.
-    const popup = openPreparingSharePopup();
+  function handleHostedXShare() {
     setNotice(null);
 
     if (shareState.status === "ready" && shareState.intentUrl !== undefined) {
-      const navigated = navigatePreparingSharePopup(popup, shareState.intentUrl);
-      setShareState((current) => ({
-        ...current,
-        message: navigated
-          ? "Your X composer is open."
-          : "Your browser blocked the X window. Allow popups and press Share on X again.",
-      }));
+      window.open(shareState.intentUrl, "_blank", "noopener,noreferrer");
       return;
     }
 
-    setShareState({ status: "preparing" });
+    if (shareState.status === "preparing") {
+      clickedWhilePreparingRef.current = true;
+      setNotice("Preparing your unique share link... It will open in a new tab in a moment!");
+      return;
+    }
 
-    try {
-      const hosted = await createHostedShare(card.blob, {
+    if (shareState.status === "error") {
+      setShareState({ status: "preparing" });
+      clickedWhilePreparingRef.current = true;
+      void createHostedShare(card.blob, {
         backendOrigin: runtimeConfig.backendOrigin,
-      });
-      const intentUrl = buildXIntentUrl(
-        hosted.url,
-        buildBuilderPassXShareText(runtimeConfig.publicAppUrl),
-      );
-      const navigated = navigatePreparingSharePopup(popup, intentUrl);
-      setShareState({
-        status: "ready",
-        intentUrl,
-        message: navigated
-          ? "Your X composer is open."
-          : "Your public card is ready. Allow popups and press Share on X again.",
-      });
-    } catch (error) {
-      closePreparingSharePopup(popup);
-      setShareState({
-        status: "error",
-        message:
-          error instanceof HostedShareError
-            ? retryMessage(error)
-            : "We could not create the public link. Your local card is safe; please retry.",
-      });
+      })
+        .then((hosted) => {
+          const intentUrl = buildXIntentUrl(
+            hosted.url,
+            buildBuilderPassXShareText(runtimeConfig.publicAppUrl),
+          );
+          setShareState({
+            status: "ready",
+            intentUrl,
+            hostedUrl: hosted.url,
+          });
+          window.open(intentUrl, "_blank", "noopener,noreferrer");
+        })
+        .catch((error: unknown) => {
+          setShareState({
+            status: "error",
+            message:
+              error instanceof HostedShareError
+                ? retryMessage(error)
+                : "Could not create public link. Please try again.",
+          });
+        });
     }
   }
 
@@ -179,17 +219,39 @@ export default function GeneratedCardScreen({
               <span>DOWNLOAD PNG</span>
               <span aria-hidden="true">↓</span>
             </button>
-            <button
-              aria-label="SHARE ON X"
-              aria-busy={shareState.status === "preparing"}
-              className="result-action result-action-share"
-              disabled={shareState.status === "preparing"}
-              onClick={() => void handleHostedXShare()}
-              type="button"
-            >
-              <span>SHARE ON X</span>
-              <span aria-hidden="true">↗</span>
-            </button>
+            {shareState.status === "ready" && shareState.intentUrl ? (
+              <a
+                aria-label="SHARE ON X"
+                className="result-action result-action-share"
+                href={shareState.intentUrl}
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleHostedXShare();
+                }}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <span>SHARE ON X</span>
+                <span aria-hidden="true">↗</span>
+              </a>
+            ) : (
+              <button
+                aria-busy={shareState.status === "preparing"}
+                aria-label="SHARE ON X"
+                className="result-action result-action-share"
+                onClick={handleHostedXShare}
+                type="button"
+              >
+                <span>
+                  {shareState.status === "preparing"
+                    ? "PREPARING LINK..."
+                    : "SHARE ON X"}
+                </span>
+                <span aria-hidden="true">
+                  {shareState.status === "preparing" ? "⏳" : "↗"}
+                </span>
+              </button>
+            )}
             <button
               className="result-action result-action-another"
               onClick={onMakeAnother}
