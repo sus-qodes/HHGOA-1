@@ -262,7 +262,7 @@ export function loadConfig(
     ),
     rateLimitShareMax: parseInteger(
       env.RATE_LIMIT_SHARE_MAX,
-      5,
+      120,
       "RATE_LIMIT_SHARE_MAX",
       1,
       10_000,

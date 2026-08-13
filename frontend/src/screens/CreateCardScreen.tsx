@@ -157,33 +157,47 @@ export default function CreateCardScreen({
             return;
           }
 
-          const sharePromise = createHostedShare(card.blob, {
-            backendOrigin: runtimeConfig.backendOrigin,
-          });
-
           prewarmedRef.current = {
             key: inputKey,
             card,
-            inFlightSharePromise: sharePromise,
           };
 
-          const hostedShare = await sharePromise;
-          if (prewarmEpochRef.current !== currentEpoch) {
-            return;
-          }
+          // After a stable pause (1.5s), start quiet background upload
+          const uploadTimer = window.setTimeout(() => {
+            if (prewarmEpochRef.current !== currentEpoch) return;
+            const sharePromise = createHostedShare(card.blob, {
+              backendOrigin: runtimeConfig.backendOrigin,
+            });
 
-          if (prewarmedRef.current.key === inputKey) {
             prewarmedRef.current = {
               key: inputKey,
               card,
-              hostedShare,
+              inFlightSharePromise: sharePromise,
             };
-          }
+
+            void sharePromise
+              .then((hostedShare) => {
+                if (prewarmEpochRef.current === currentEpoch) {
+                  prewarmedRef.current = {
+                    key: inputKey,
+                    card,
+                    hostedShare,
+                  };
+                }
+              })
+              .catch(() => {
+                // Ignore background upload error; handled on result screen
+              });
+          }, 1200);
+
+          return () => {
+            window.clearTimeout(uploadTimer);
+          };
         } catch {
           // Pre-warming is best-effort background optimization
         }
       })();
-    }, 500);
+    }, 300);
 
     return () => {
       prewarmEpochRef.current += 1;
