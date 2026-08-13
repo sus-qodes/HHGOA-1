@@ -162,21 +162,39 @@ export function loadConfig(
     ENVIRONMENTS,
     "NODE_ENV",
   );
-  const vercelOrigin = env.VERCEL_URL ? `https://${env.VERCEL_URL}` : undefined;
+
+  // Vercel provides VERCEL_URL (bare hostname, no protocol) and
+  // VERCEL_PROJECT_PRODUCTION_URL for production deployments.
+  // Derive a usable origin from whatever Vercel gives us.
+  const vercelHost =
+    env.VERCEL_PROJECT_PRODUCTION_URL?.trim() ||
+    env.VERCEL_URL?.trim() ||
+    env.VERCEL_BRANCH_URL?.trim();
+  const vercelOrigin = vercelHost ? `https://${vercelHost}` : undefined;
+  const autoOrigin = vercelOrigin ?? "http://localhost:3001";
+
+  // Log environment detection for debugging Vercel Services startup
+  console.log("[config] VERCEL_URL:", env.VERCEL_URL ?? "(not set)");
+  console.log("[config] VERCEL_PROJECT_PRODUCTION_URL:", env.VERCEL_PROJECT_PRODUCTION_URL ?? "(not set)");
+  console.log("[config] PUBLIC_APP_URL:", env.PUBLIC_APP_URL ?? "(not set)");
+  console.log("[config] PUBLIC_SHARE_BASE_URL:", env.PUBLIC_SHARE_BASE_URL ?? "(not set)");
+  console.log("[config] Derived autoOrigin:", autoOrigin);
+
   const blobReadWriteToken = optionalSecret(env.BLOB_READ_WRITE_TOKEN);
   const blobStoreId = optionalSecret(env.BLOB_STORE_ID);
   const blobWebhookPublicKey =
     optionalSecret(env.BLOB_WEBHOOK_PUBLIC_KEY) ?? "default_blob_webhook_public_key";
   const cronSecret = optionalSecret(env.CRON_SECRET) ?? "default_cron_secret";
+
   const publicAppUrl = parseBaseUrl(
-    env.PUBLIC_APP_URL ?? vercelOrigin,
-    "http://localhost:3000",
+    optionalSecret(env.PUBLIC_APP_URL) ?? vercelOrigin,
+    autoOrigin,
     "PUBLIC_APP_URL",
     false,
   );
   const publicShareBaseUrl = parseBaseUrl(
-    env.PUBLIC_SHARE_BASE_URL ?? vercelOrigin,
-    "http://localhost:3001",
+    optionalSecret(env.PUBLIC_SHARE_BASE_URL) ?? vercelOrigin,
+    autoOrigin,
     "PUBLIC_SHARE_BASE_URL",
     false,
   );
