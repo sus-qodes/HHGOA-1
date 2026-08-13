@@ -98,7 +98,7 @@ async function encodeSanitizedCard(
   readonly quantizedPsnr: number | undefined;
 }> {
   const { data: pixels, info: decodedInfo } = await sharp(input, {
-    failOn: "warning",
+    failOn: "none",
     limitInputPixels: SHARE_IMAGE_CONTRACT.maxInputPixels,
     pages: 1,
   })
@@ -146,8 +146,8 @@ async function encodeSanitizedCard(
   const encodedPaletteCandidate = await sharp(fullColour)
     .timeout({ seconds: deadline.secondsRemaining() })
     .png({
-      compressionLevel: 9,
-      adaptiveFiltering: true,
+      compressionLevel: 6,
+      adaptiveFiltering: false,
       palette: true,
       colours: 256,
       quality: 90,
@@ -222,7 +222,7 @@ export class ShareImageProcessor {
 
     try {
       const metadata = await sharp(input, {
-        failOn: "warning",
+        failOn: "none",
         limitInputPixels: SHARE_IMAGE_CONTRACT.maxInputPixels,
         pages: 1,
       })
@@ -235,9 +235,11 @@ export class ShareImageProcessor {
       if ((metadata.pages ?? 1) !== 1) {
         throw new AppError("ANIMATED_IMAGE_NOT_SUPPORTED");
       }
+      const width = metadata.autoOrient?.width ?? metadata.width;
+      const height = metadata.autoOrient?.height ?? metadata.height;
       if (
-        metadata.autoOrient.width !== SHARE_IMAGE_CONTRACT.width ||
-        metadata.autoOrient.height !== SHARE_IMAGE_CONTRACT.height
+        width !== SHARE_IMAGE_CONTRACT.width ||
+        height !== SHARE_IMAGE_CONTRACT.height
       ) {
         throw new AppError("INVALID_IMAGE_DIMENSIONS");
       }

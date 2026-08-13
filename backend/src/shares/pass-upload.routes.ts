@@ -323,12 +323,17 @@ export const passUploadRoutes: FastifyPluginAsync<PassUploadRouteOptions> =
       async (request, reply) => {
         assertAllowedOrigin(request, options.config, false);
         assertEmptyBody(request);
-        const result = await options.service.finalize(request.params.uploadId);
-        return reply
-          .code(result.created ? 201 : 200)
-          .header("Location", result.pass.url)
-          .header("Cache-Control", "no-store")
-          .send({ pass: result.pass });
+        try {
+          const result = await options.service.finalize(request.params.uploadId);
+          return reply
+            .code(result.created ? 201 : 200)
+            .header("Location", result.pass.url)
+            .header("Cache-Control", "no-store")
+            .send({ pass: result.pass });
+        } catch (error) {
+          request.log.error({ error, uploadId: request.params.uploadId }, "Pass finalization failed");
+          throw error;
+        }
       },
     );
   };

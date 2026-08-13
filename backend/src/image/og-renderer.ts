@@ -85,7 +85,7 @@ export async function renderOgImage(
 ): Promise<Buffer> {
   const manifest = SHARE_PAGE_V1_MANIFEST;
   try {
-    const cardBuffer = await sharp(sanitizedCard, { failOn: "warning" })
+    const cardBuffer = await sharp(sanitizedCard, { failOn: "none" })
       .timeout({ seconds: timeoutSeconds })
       .resize({
         width: manifest.card.width,
