@@ -132,8 +132,13 @@ export async function buildApp(
 
 let vercelApp: Promise<FastifyInstance> | undefined;
 
-function getVercelApp(): Promise<FastifyInstance> {
-  vercelApp ??= buildApp();
+async function getVercelApp(): Promise<FastifyInstance> {
+  if (vercelApp === undefined) {
+    vercelApp = buildApp().catch((error) => {
+      vercelApp = undefined;
+      throw error;
+    });
+  }
   return vercelApp;
 }
 
@@ -144,6 +149,21 @@ export default async function handler(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
-  const app = await getVercelApp();
-  app.routing(request, response);
+  try {
+    const app = await getVercelApp();
+    app.routing(request, response);
+  } catch (error) {
+    console.error("Vercel Serverless Function error:", error);
+    if (!response.headersSent) {
+      response.statusCode = 500;
+      response.setHeader("Content-Type", "application/json");
+      response.end(
+        JSON.stringify({
+          error: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Initialization failed",
+          detail: String(error),
+        }),
+      );
+    }
+  }
 }
