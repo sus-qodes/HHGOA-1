@@ -156,25 +156,20 @@ export function loadConfig(
     ENVIRONMENTS,
     "NODE_ENV",
   );
-  const production = environment === "production";
+  const vercelOrigin = env.VERCEL_URL ? `https://${env.VERCEL_URL}` : undefined;
   const blobReadWriteToken = optionalSecret(env.BLOB_READ_WRITE_TOKEN);
   const blobStoreId = optionalSecret(env.BLOB_STORE_ID);
-  if (blobReadWriteToken === undefined && blobStoreId === undefined) {
-    throw new ConfigError(
-      "BLOB_STORE_ID (OIDC) or BLOB_READ_WRITE_TOKEN is required for Vercel Blob storage.",
-    );
-  }
   const blobWebhookPublicKey =
     optionalSecret(env.BLOB_WEBHOOK_PUBLIC_KEY) ?? "default_blob_webhook_public_key";
   const cronSecret = optionalSecret(env.CRON_SECRET) ?? "default_cron_secret";
   const publicAppUrl = parseBaseUrl(
-    env.PUBLIC_APP_URL,
+    env.PUBLIC_APP_URL ?? vercelOrigin,
     "http://localhost:3000",
     "PUBLIC_APP_URL",
     false,
   );
   const publicShareBaseUrl = parseBaseUrl(
-    env.PUBLIC_SHARE_BASE_URL,
+    env.PUBLIC_SHARE_BASE_URL ?? vercelOrigin,
     "http://localhost:3001",
     "PUBLIC_SHARE_BASE_URL",
     false,

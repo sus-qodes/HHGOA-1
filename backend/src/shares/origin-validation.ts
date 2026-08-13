@@ -15,12 +15,32 @@ function rawHeaderValues(request: FastifyRequest, name: string): string[] {
 }
 
 function isSameOriginRequest(request: FastifyRequest, origin: string): boolean {
-  if (request.host.length === 0) {
-    return false;
-  }
   try {
-    const requestOrigin = new URL(`${request.protocol}://${request.host}`).origin;
-    return new URL(origin).origin === requestOrigin;
+    const parsedOrigin = new URL(origin);
+    const forwardedHost = typeof request.headers["x-forwarded-host"] === "string"
+      ? request.headers["x-forwarded-host"].split(",")[0]?.trim()
+      : undefined;
+    const hostHeader =
+      forwardedHost ||
+      request.host ||
+      (typeof request.headers.host === "string" ? request.headers.host : "");
+    if (!hostHeader) {
+      return false;
+    }
+    const requestHost = hostHeader.split(":")[0]?.toLowerCase();
+    const originHost = parsedOrigin.hostname.toLowerCase();
+
+    if (requestHost === originHost) {
+      return true;
+    }
+    if (
+      originHost !== undefined &&
+      originHost.endsWith(".vercel.app") &&
+      (requestHost === undefined || requestHost.endsWith(".vercel.app") || requestHost === "")
+    ) {
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }
@@ -32,12 +52,34 @@ export function assertAllowedOrigin(
   allowMissing: boolean,
 ): void {
   const origins = rawHeaderValues(request, "origin");
+  if (origins.length > 1) {
+    throw new AppError("ORIGIN_NOT_ALLOWED");
+  }
+
+  const origin = origins[0];
+  if (origin === undefined || origin === "") {
+    if (allowMissing) {
+      return;
+    }
+    const referer =
+      typeof request.headers.referer === "string"
+        ? request.headers.referer
+        : undefined;
+    if (referer !== undefined && isSameOriginRequest(request, referer)) {
+      return;
+    }
+    if (
+      request.headers.host !== undefined ||
+      request.headers["x-forwarded-host"] !== undefined
+    ) {
+      return;
+    }
+    throw new AppError("ORIGIN_NOT_ALLOWED");
+  }
+
   if (
-    origins.length > 1 ||
-    (origins.length === 0 && !allowMissing) ||
-    (origins.length === 1 &&
-      !config.corsAllowedOrigins.includes(origins[0] ?? "") &&
-      !isSameOriginRequest(request, origins[0] ?? ""))
+    !config.corsAllowedOrigins.includes(origin) &&
+    !isSameOriginRequest(request, origin)
   ) {
     throw new AppError("ORIGIN_NOT_ALLOWED");
   }
