@@ -1,14 +1,13 @@
 import { parseHttpUrl } from "./shareValidation";
 
-export const X_HASHTAGS = "FrameInGoa,HHGoa2026";
+export const X_HASHTAGS = "FrameInGoa,HHGoa2026,HackerHouseGoa";
 export const DEFAULT_X_SHARE_TEXT =
-  "PACK YOUR BAGS! 🌴⚡️ Just locked in my official Builder Pass for Hacker House Goa 2026 with @247pmstudio.\n\nSee you in Goa, builders. We're going all in! 🚀🔥\n\nFrame your own Builder ID:";
+  "Certified builder, certified vibes 🌴⚡️\n\nCooked up my official Builder Pass for Hacker House Goa 2026. Ocean breeze + late night commits, we are locked in! 🚀💻🔥\n\nCrafted with @247pmstudio 🎨✨\nClaim your pass:";
 
 const X_INTENT_URL = "https://x.com/intent/tweet";
 
-export function buildBuilderPassXShareText(publicAppUrl: string): string {
-  const parsedAppUrl = parseHttpUrl(publicAppUrl, "Public app URL");
-  return `${DEFAULT_X_SHARE_TEXT}\n${parsedAppUrl.origin}\n\n`;
+export function buildBuilderPassXShareText(): string {
+  return DEFAULT_X_SHARE_TEXT;
 }
 
 export function buildXIntentUrl(

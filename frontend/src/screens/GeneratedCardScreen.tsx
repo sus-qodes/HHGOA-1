@@ -43,7 +43,7 @@ export default function GeneratedCardScreen({
     if (card.prewarmedShare) {
       const intentUrl = buildXIntentUrl(
         card.prewarmedShare.url,
-        buildBuilderPassXShareText(runtimeConfig.publicAppUrl),
+        buildBuilderPassXShareText(),
       );
       return {
         status: "ready",
@@ -74,7 +74,7 @@ export default function GeneratedCardScreen({
         if (!active) return;
         const intentUrl = buildXIntentUrl(
           hosted.url,
-          buildBuilderPassXShareText(runtimeConfig.publicAppUrl),
+          buildBuilderPassXShareText(),
         );
         setShareState({
           status: "ready",
@@ -133,7 +133,7 @@ export default function GeneratedCardScreen({
         .then((hosted) => {
           const intentUrl = buildXIntentUrl(
             hosted.url,
-            buildBuilderPassXShareText(runtimeConfig.publicAppUrl),
+            buildBuilderPassXShareText(),
           );
           setShareState({
             status: "ready",
@@ -241,10 +241,6 @@ export default function GeneratedCardScreen({
                 aria-label="SHARE ON X"
                 className="result-action result-action-share"
                 href={shareState.intentUrl}
-                onClick={(event) => {
-                  event.preventDefault();
-                  handleHostedXShare();
-                }}
                 rel="noopener noreferrer"
                 target="_blank"
               >
