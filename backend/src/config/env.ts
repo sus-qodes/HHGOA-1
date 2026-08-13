@@ -91,9 +91,16 @@ function parseBaseUrl(
   name: string,
   requireHttps: boolean,
 ): string {
+  const raw = value?.trim();
+  const rawInput = !raw ? fallback : raw;
+  const input =
+    rawInput.startsWith("http://") || rawInput.startsWith("https://")
+      ? rawInput
+      : `https://${rawInput}`;
+
   let url: URL;
   try {
-    url = new URL(value ?? fallback);
+    url = new URL(input);
   } catch {
     throw new ConfigError(`${name} must be an absolute HTTP or HTTPS URL.`);
   }
@@ -108,8 +115,7 @@ function parseBaseUrl(
     url.username !== "" ||
     url.password !== "" ||
     url.search !== "" ||
-    url.hash !== "" ||
-    (url.pathname !== "/" && url.pathname !== "")
+    url.hash !== ""
   ) {
     throw new ConfigError(`${name} must contain only an origin.`);
   }
